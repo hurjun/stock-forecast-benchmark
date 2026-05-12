@@ -1,6 +1,6 @@
 # Stock Forecast Benchmark
 
-> Comparing **7 time-series forecasting models** on historical stock data.
+> Comparing **9 time-series forecasting models** on historical stock data.
 > **Train:** 1962–1992 &nbsp;|&nbsp; **Test:** 1993–2000 &nbsp;|&nbsp; **Tickers:** ^GSPC, KO, IBM
 
 [![Open In Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/your-notebook-link-here)
@@ -99,14 +99,17 @@ Training times measured on Google Colab CPU (no GPU) per ticker. Deep-learning m
 | Model | Category | Train Time / Ticker | Description |
 |---|---|---|---|
 | ARIMA | Statistical | ~1 s | Autoregressive Integrated Moving Average — classic univariate baseline |
+| ETS | Statistical | ~1 s | Holt-Winters Exponential Smoothing with damped additive trend |
 | Prophet | Statistical | ~7 s | Meta's decomposable model with trend and seasonality components |
 | XGBoost | Gradient Boosting | ~5 s | Tree ensemble trained on lag and rolling-window features |
 | LightGBM | Gradient Boosting | ~3 s | Fast histogram-based gradient boosting with the same feature set |
 | LSTM | Deep Learning | ~18 min | Long Short-Term Memory recurrent network on normalized price sequences |
 | GRU | Deep Learning | ~19 min | Gated Recurrent Unit — lighter alternative to LSTM |
+| TCN | Deep Learning | ~7 min | Temporal Convolutional Network — dilated causal convolutions, faster than RNNs |
 | Transformer | Deep Learning | ~21 min | Self-attention encoder for sequential price data |
 
-Total wall-clock time for the full benchmark (3 tickers × 7 models): **~3 hours on CPU**.
+Total wall-clock time for the full benchmark (3 tickers × 9 models): **~3.5 hours on CPU**.
+TCN trains ~3× faster than LSTM/GRU because Conv1d operations are fully parallelisable over the time axis, unlike sequential RNN steps.
 
 ---
 

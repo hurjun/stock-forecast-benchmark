@@ -7,8 +7,8 @@ Usage:
 What this script does:
   1. Load configuration from config.yaml
   2. Download and preprocess stock data for each ticker (cached locally)
-  3. Train all 7 forecasting models on the training period (1962–1990)
-  4. Generate predictions for the test period (1991–2000)
+  3. Train all 9 forecasting models on the training period (1962–1992)
+  4. Generate predictions for the test period (1993–2000)
   5. Compute MAE, RMSE, MAPE, and Directional Accuracy for every model/ticker pair
   6. Save a leaderboard (CSV + Markdown) and inject it into README.md
   7. Save forecast comparison and metrics bar charts to results/
@@ -27,10 +27,12 @@ from data.loader import load_ticker
 from evaluation.leaderboard import build_leaderboard, inject_into_readme, save_leaderboard
 from evaluation.metrics import compute_all
 from models.arima import ARIMAForecaster
+from models.ets_model import ETSForecaster
 from models.gru import GRUForecaster
 from models.lightgbm_model import LightGBMForecaster
 from models.lstm import LSTMForecaster
 from models.prophet_model import ProphetForecaster
+from models.tcn import TCNForecaster
 from models.transformer import TransformerForecaster
 from models.xgboost_model import XGBoostForecaster
 from visualization.plots import plot_forecast_comparison, plot_metrics_bar
@@ -61,11 +63,13 @@ def build_models(cfg: dict) -> list:
     m    = cfg["models"]
     return [
         ARIMAForecaster(m["arima"]),
+        ETSForecaster(m["ets"]),
         ProphetForecaster(m["prophet"]),
         XGBoostForecaster(m["xgboost"], feat),
         LightGBMForecaster(m["lightgbm"], feat),
         LSTMForecaster(m["lstm"]),
         GRUForecaster(m["gru"]),
+        TCNForecaster(m["tcn"]),
         TransformerForecaster(m["transformer"]),
     ]
 

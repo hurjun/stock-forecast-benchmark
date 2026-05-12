@@ -62,3 +62,15 @@ models:
     epochs: 50
     batch_size: 32
     lr: 0.001
+
+  ets:
+    trend: "add"                  # additive (linear) trend component
+    damped_trend: true            # dampen extrapolation at long horizons
+
+  tcn:
+    num_channels: [64, 64, 64]   # output channels per residual block; dilation doubles each block
+    kernel_size: 3                # conv filter width
+    seq_len: 60                   # input context window (trading days)
+    epochs: 50
+    batch_size: 32
+    lr: 0.001
