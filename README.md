@@ -14,16 +14,18 @@ All models were trained on 30 years of daily closing prices (1962–1992) and ev
 ![Forecast Comparison](results/forecast_comparison.png)
 
 <!-- LEADERBOARD_START -->
-| Rank | Model | MAE | RMSE | MAPE | DA |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Prophet | 117.45 | 160.27 | 40.13% | 49.46% |
-| 2 | LSTM | 136.79 | 186.14 | 40.81% | 17.95% |
-| 3 | GRU | 139.18 | 187.71 | 60.32% | 10.63% |
-| 4 | ARIMA | 148.01 | 196.91 | 48.12% | 3.73% |
-| 5 | XGBoost | 148.34 | 197.18 | 49.54% | 3.75% |
-| 6 | LightGBM | 148.56 | 197.36 | 48.64% | 8.57% |
-| 7 | Transformer | 149.05 | 197.74 | 60.00% | 20.72% |
+| Rank | Model | MAE | RMSE | MAPE | DA | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | **Prophet** | **117.45** | **160.27** | **40.13%** | **49.46%** | Best overall |
+| 2 | LSTM | 136.79 | 186.14 | 40.81% | 17.95% | Best deep learning |
+| 3 | GRU | 139.18 | 187.71 | 60.32% | 10.63% | — |
+| 4 | ARIMA | 148.01 | 196.91 | 48.12% | 3.73% | — |
+| 5 | XGBoost | 148.34 | 197.18 | 49.54% | 3.75% | — |
+| 6 | LightGBM | 148.56 | 197.36 | 48.64% | 8.57% | — |
+| 7 | *Transformer* | *149.05* | *197.74* | *60.00%* | *20.72%* | Worst overall |
 <!-- LEADERBOARD_END -->
+
+> **Bold** = best value in that column &nbsp;|&nbsp; *Italic* = worst value &nbsp;|&nbsp; Metrics averaged across ^GSPC, KO, IBM
 
 ![Metrics Bar Chart](results/metrics_bar.png)
 
