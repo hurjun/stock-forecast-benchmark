@@ -41,9 +41,12 @@ data/raw/
 !results/*.csv
 
 # -----------------------------------------------------------------------------
-# Jupyter notebooks (source uses scripts only, not notebooks)
+# Jupyter notebooks
+# The notebooks/ directory is intentionally committed (Kaggle showcase).
+# All other .ipynb files and checkpoint directories are excluded.
 # -----------------------------------------------------------------------------
 *.ipynb
+!notebooks/*.ipynb
 .ipynb_checkpoints/
 
 # -----------------------------------------------------------------------------

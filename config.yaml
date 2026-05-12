@@ -1,0 +1,64 @@
+# =============================================================================
+# Stock Forecast Benchmark — Configuration
+# All hyperparameters, tickers, and date ranges live here.
+# Do NOT hardcode any of these values inside model files.
+# =============================================================================
+
+data:
+  # Tickers with long historical records available via yfinance.
+  # ^GSPC = S&P 500 Index (data from 1950)
+  # KO    = Coca-Cola      (data from ~1962)
+  # IBM   = IBM            (data from ~1962)
+  tickers: ["^GSPC", "KO", "IBM"]
+  train_start: "1962-01-01"   # Effective start; yfinance KO/IBM data begins ~1962
+  train_end:   "1990-12-31"
+  test_start:  "1991-01-01"
+  test_end:    "2000-12-31"
+  target_col:  "Close"
+
+features:
+  lags: 30                      # Number of lag features (lag_1 … lag_30)
+  rolling_windows: [7, 14, 30]  # Rolling mean and std window sizes
+
+models:
+  arima:
+    order: [5, 1, 0]            # ARIMA(p, d, q)
+
+  prophet:
+    weekly_seasonality: true
+    yearly_seasonality: true
+
+  xgboost:
+    n_estimators: 500
+    learning_rate: 0.05
+    max_depth: 5
+
+  lightgbm:
+    n_estimators: 500
+    learning_rate: 0.05
+    max_depth: 5
+
+  lstm:
+    hidden_size: 128
+    num_layers: 2
+    seq_len: 60
+    epochs: 50
+    batch_size: 32
+    lr: 0.001
+
+  gru:
+    hidden_size: 128
+    num_layers: 2
+    seq_len: 60
+    epochs: 50
+    batch_size: 32
+    lr: 0.001
+
+  transformer:
+    d_model: 64
+    nhead: 4
+    num_layers: 2
+    seq_len: 60
+    epochs: 50
+    batch_size: 32
+    lr: 0.001
