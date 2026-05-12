@@ -9,6 +9,8 @@
 
 ## Results
 
+All models were trained on 30 years of daily closing prices (1962–1992) and evaluated on a held-out 8-year test period (1993–2000). Metrics below are **averaged across all three tickers**; lower MAE/RMSE/MAPE and higher DA are better.
+
 ![Forecast Comparison](results/forecast_comparison.png)
 
 <!-- LEADERBOARD_START -->
@@ -23,19 +25,86 @@
 | 7 | Transformer | 149.05 | 197.74 | 60.00% | 20.72% |
 <!-- LEADERBOARD_END -->
 
+![Metrics Bar Chart](results/metrics_bar.png)
+
 ---
 
-## Models
+## Per-Ticker Results
 
-| Model | Category | Description |
-|---|---|---|
-| ARIMA | Statistical | Autoregressive Integrated Moving Average — classic univariate baseline |
-| Prophet | Statistical | Meta's decomposable model with trend and seasonality components |
-| XGBoost | Gradient Boosting | Tree ensemble trained on lag and rolling-window features |
-| LightGBM | Gradient Boosting | Fast histogram-based gradient boosting with the same feature set |
-| LSTM | Deep Learning | Long Short-Term Memory recurrent network on normalized price sequences |
-| GRU | Deep Learning | Gated Recurrent Unit — lighter alternative to LSTM |
-| Transformer | Deep Learning | Self-attention encoder for sequential price data |
+<details>
+<summary>^GSPC (S&P 500 Index)</summary>
+
+| Model | MAE | RMSE | MAPE | DA |
+|---|---|---|---|---|
+| Prophet | 329.84 | 449.37 | 29.67% | 53.7% |
+| LSTM | 389.80 | 528.81 | 35.17% | 4.7% |
+| GRU | 386.14 | 523.70 | 34.93% | 8.7% |
+| ARIMA | 418.74 | 556.35 | 38.57% | 1.4% |
+| XGBoost | 419.35 | 556.82 | 38.66% | 0.7% |
+| LightGBM | 420.32 | 557.55 | 38.79% | 0.4% |
+| Transformer | 416.93 | 554.96 | 38.32% | 13.5% |
+
+</details>
+
+<details>
+<summary>KO (Coca-Cola)</summary>
+
+| Model | MAE | RMSE | MAPE | DA |
+|---|---|---|---|---|
+| Prophet | 4.36 | 5.55 | 32.16% | 48.0% |
+| LSTM | 6.19 | 7.67 | 45.99% | 6.8% |
+| GRU | 6.38 | 7.87 | 47.66% | 9.8% |
+| ARIMA | 6.34 | 7.83 | 47.22% | 5.3% |
+| XGBoost | 6.73 | 8.17 | 51.44% | 6.8% |
+| LightGBM | 6.63 | 8.15 | 49.69% | 21.7% |
+| Transformer | 6.51 | 7.98 | 49.10% | 24.4% |
+
+</details>
+
+<details>
+<summary>IBM</summary>
+
+| Model | MAE | RMSE | MAPE | DA |
+|---|---|---|---|---|
+| LSTM | 14.37 | 21.95 | 41.27% | 42.3% |
+| Prophet | 18.15 | 25.89 | 58.57% | 46.7% |
+| XGBoost | 18.94 | 26.55 | 58.53% | 3.7% |
+| ARIMA | 18.94 | 26.55 | 58.55% | 4.5% |
+| LightGBM | 18.74 | 26.38 | 57.44% | 3.6% |
+| Transformer | 23.71 | 30.26 | 92.59% | 24.3% |
+| GRU | 25.02 | 31.57 | 98.38% | 13.4% |
+
+</details>
+
+---
+
+## Key Findings
+
+**Prophet ranks first overall.** Its decomposable trend component naturally follows the sustained bull market of 1993–2000, which explains both its low RMSE and its near-random DA (~50%): the model tracks the long-run level well but does not capture daily direction.
+
+**Tree-based models (XGBoost, LightGBM) show near-zero DA on ^GSPC (~0.4–0.7%).** Gradient-boosted trees learned mean-reversion patterns from the choppy 1962–1992 training data and consequently predict a flat or declining price trajectory during a period of strong sustained growth. This is a well-known limitation of ML models on non-stationary financial series.
+
+**LSTM outperforms GRU on IBM, but GRU/Transformer MAPE spikes above 90%.** IBM had an unusual price trajectory in the 1990s (declining through mid-decade, then recovering sharply). Recursive prediction errors compound over 2,000 steps, causing deep-learning models to diverge on this ticker.
+
+**Deep learning is expensive relative to its gains.** LSTM and GRU each take ~18–20 minutes per ticker on CPU vs. seconds for statistical and tree-based models, yet they rank only 2nd and 3rd — only modestly ahead of far cheaper baselines.
+
+---
+
+## Models & Training Time
+
+Training times measured on Google Colab CPU (no GPU) per ticker. Deep-learning models run 50 epochs with batch size 32 on sequences of length 60.
+
+| Model | Category | Train Time / Ticker | Description |
+|---|---|---|---|
+| ARIMA | Statistical | ~1 s | Autoregressive Integrated Moving Average — classic univariate baseline |
+| Prophet | Statistical | ~7 s | Meta's decomposable model with trend and seasonality components |
+| XGBoost | Gradient Boosting | ~5 s | Tree ensemble trained on lag and rolling-window features |
+| LightGBM | Gradient Boosting | ~3 s | Fast histogram-based gradient boosting with the same feature set |
+| LSTM | Deep Learning | ~18 min | Long Short-Term Memory recurrent network on normalized price sequences |
+| GRU | Deep Learning | ~19 min | Gated Recurrent Unit — lighter alternative to LSTM |
+| Transformer | Deep Learning | ~21 min | Self-attention encoder for sequential price data |
+
+Total wall-clock time for the full benchmark (3 tickers × 7 models): **~3 hours on CPU**.
 
 ---
 
