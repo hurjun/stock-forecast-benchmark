@@ -1,7 +1,7 @@
 # Stock Forecast Benchmark
 
 > Comparing **7 time-series forecasting models** on historical stock data.
-> **Train:** 1962–1990 &nbsp;|&nbsp; **Test:** 1991–2000 &nbsp;|&nbsp; **Tickers:** ^GSPC, KO, IBM
+> **Train:** 1962–1992 &nbsp;|&nbsp; **Test:** 1993–2000 &nbsp;|&nbsp; **Tickers:** ^GSPC, KO, IBM
 
 [![Open In Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/your-notebook-link-here)
 

@@ -11,8 +11,8 @@ data:
   # IBM   = IBM            (data from ~1962)
   tickers: ["^GSPC", "KO", "IBM"]
   train_start: "1962-01-01"   # Effective start; yfinance KO/IBM data begins ~1962
-  train_end:   "1990-12-31"
-  test_start:  "1991-01-01"
+  train_end:   "1992-12-31"
+  test_start:  "1993-01-01"
   test_end:    "2000-12-31"
   target_col:  "Close"
 

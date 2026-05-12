@@ -50,7 +50,7 @@ def plot_forecast_comparison(
             alpha=0.85,
         )
 
-    ax.set_title(f"Forecast Comparison — {ticker} (Test Period: 1991–2000)")
+    ax.set_title(f"Forecast Comparison — {ticker} (Test Period: 1993–2000)")
     ax.set_xlabel("Date")
     ax.set_ylabel("Close Price (USD)")
     ax.legend(loc="upper left", fontsize=8)
@@ -89,7 +89,7 @@ def plot_metrics_bar(
         ax.set_xlabel("")
         ax.tick_params(axis="x", rotation=40)   # rotate labels to avoid overlap
 
-    fig.suptitle("Model Comparison — Average Across Tickers (1991–2000)", y=1.03)
+    fig.suptitle("Model Comparison — Average Across Tickers (1993–2000)", y=1.03)
     plt.tight_layout()
 
     os.makedirs(out_dir, exist_ok=True)
