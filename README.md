@@ -11,8 +11,6 @@
 
 All models were trained on 30 years of daily closing prices (1962–1992) and evaluated on a held-out 8-year test period (1993–2000). Metrics below are **averaged across all three tickers**; lower MAE/RMSE/MAPE and higher DA are better.
 
-![Forecast Comparison](results/forecast_comparison.png)
-
 <!-- LEADERBOARD_START -->
 | Rank | Model | MAE | RMSE | MAPE | DA | Train Time / Ticker | Verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -28,8 +26,6 @@ All models were trained on 30 years of daily closing prices (1962–1992) and ev
 <!-- LEADERBOARD_END -->
 
 > **Bold** = best value in that column &nbsp;|&nbsp; *Italic* = worst value &nbsp;|&nbsp; Metrics averaged across ^GSPC, KO, IBM
-
-![Metrics Bar Chart](results/metrics_bar.png)
 
 ---
 
