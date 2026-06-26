@@ -2,45 +2,47 @@
 Entry point for the Stock Forecast Benchmark.
 
 Usage:
-    python main.py
+    python main.py            # full benchmark on real data (downloads via yfinance)
+    python main.py --smoke    # fast synthetic smoke run (no network, seconds)
 
-What this script does:
+What the full run does:
   1. Load configuration from config.yaml
   2. Download and preprocess stock data for each ticker (cached locally)
-  3. Train all 9 forecasting models on the training period (1962–1992)
-  4. Generate predictions for the test period (1993–2000)
+  3. Train all 9 forecasting models on the training period (1962-1992)
+  4. Generate predictions for the test period (1993-2000)
   5. Compute MAE, RMSE, MAPE, and Directional Accuracy for every model/ticker pair
   6. Save a leaderboard (CSV + Markdown) and inject it into README.md
   7. Save forecast comparison and metrics bar charts to results/
+
+The ``--smoke`` run generates a deterministic synthetic price series and trains
+only the fast statistical baselines (Naive, ARIMA, ETS), letting a reviewer
+verify the end-to-end pipeline in seconds without any network access.  It never
+touches README.md or the committed results/.
 """
 
+import argparse
 import logging
 import warnings
 
 import numpy as np
 import yaml
 
-# Suppress noisy third-party warnings (statsmodels, prophet, etc.)
-warnings.filterwarnings("ignore")
-
-from data.loader import load_ticker
 from evaluation.leaderboard import build_leaderboard, inject_into_readme, save_leaderboard
 from evaluation.metrics import compute_all
-from models.arima import ARIMAForecaster
-from models.ets_model import ETSForecaster
-from models.gru import GRUForecaster
-from models.lightgbm_model import LightGBMForecaster
-from models.lstm import LSTMForecaster
-from models.prophet_model import ProphetForecaster
-from models.tcn import TCNForecaster
-from models.transformer import TransformerForecaster
-from models.xgboost_model import XGBoostForecaster
-from visualization.plots import plot_forecast_comparison, plot_metrics_bar
+from seed import SEED, set_global_seeds
+
+# Silence the few high-volume but benign warning categories emitted by the
+# statistical/deep-learning stack at import and fit time.  We deliberately keep
+# this targeted (rather than a blanket ``filterwarnings("ignore")``) so that
+# genuine numerical or runtime warnings still surface.
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # Configure root logger: INFO level shows training progress without debug noise
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
+    format="%(asctime)s  %(levelname)-8s  %(name)s - %(message)s",
     datefmt="%H:%M:%S",
 )
 logger = logging.getLogger(__name__)
@@ -56,9 +58,21 @@ def build_models(cfg: dict) -> list:
     """
     Instantiate all forecasters from the loaded config.
 
-    Each model receives only the slice of config it needs so that
-    model files never import from config.yaml directly.
+    Each model receives only the slice of config it needs so that model files
+    never import from config.yaml directly.  The model classes are imported
+    lazily here so that lightweight entry points (the smoke run, the test
+    suite) do not need the full deep-learning stack installed.
     """
+    from models.arima import ARIMAForecaster
+    from models.ets_model import ETSForecaster
+    from models.gru import GRUForecaster
+    from models.lightgbm_model import LightGBMForecaster
+    from models.lstm import LSTMForecaster
+    from models.prophet_model import ProphetForecaster
+    from models.tcn import TCNForecaster
+    from models.transformer import TransformerForecaster
+    from models.xgboost_model import XGBoostForecaster
+
     feat = cfg["features"]
     m    = cfg["models"]
     return [
@@ -78,8 +92,8 @@ def _align(arr: np.ndarray, n: int) -> np.ndarray:
     """
     Make sure predict() output is exactly n elements long.
 
-    Some models (e.g. Prophet with business-day calendars) may return
-    slightly more or fewer steps than requested.
+    Some models (e.g. Prophet with business-day calendars) may return slightly
+    more or fewer steps than requested.
     """
     if len(arr) > n:
         return arr[:n]
@@ -94,11 +108,13 @@ def run_pipeline(cfg: dict):
     Main training + evaluation loop across all tickers and models.
 
     Returns:
-        results      — list of per-(model, ticker) metric dicts
-        all_forecasts — {ticker: {model_name: predictions}}
-        all_actuals   — {ticker: actual_close_array}
-        all_dates     — {ticker: DatetimeIndex of test period}
+        results      - list of per-(model, ticker) metric dicts
+        all_forecasts - {ticker: {model_name: predictions}}
+        all_actuals   - {ticker: actual_close_array}
+        all_dates     - {ticker: DatetimeIndex of test period}
     """
+    from data.loader import load_ticker
+
     tickers = cfg["data"]["tickers"]
 
     results: list[dict]             = []
@@ -145,8 +161,82 @@ def run_pipeline(cfg: dict):
     return results, all_forecasts, all_actuals, all_dates
 
 
+def run_smoke(cfg: dict) -> "object":
+    """
+    Fast, network-free smoke benchmark on a deterministic synthetic series.
+
+    Trains only the cheap statistical baselines (Naive, ARIMA, ETS) so a
+    reviewer can confirm the full data -> feature -> split -> fit -> evaluate
+    pipeline works in seconds.  Results are printed only; README.md and the
+    committed results/ are left untouched.
+
+    Returns:
+        The smoke leaderboard DataFrame (for programmatic inspection / tests).
+    """
+    from data.loader import add_features, make_synthetic_prices, split_train_test
+    from models.arima import ARIMAForecaster
+    from models.ets_model import ETSForecaster
+    from models.naive import NaiveForecaster
+
+    logger.info("Running SMOKE benchmark on SYNTHETIC data (no network).")
+
+    feat = cfg["features"]
+    df = make_synthetic_prices(n_days=1300, start="1990-01-01", seed=SEED)
+    df = add_features(df, feat["lags"], feat["rolling_windows"])
+
+    smoke_cfg = {
+        "train_start": "1990-01-01", "train_end": "1992-12-31",
+        "test_start":  "1993-01-01", "test_end":  "1994-12-31",
+        "target_col":  "Close",
+    }
+    train_df, test_df = split_train_test(df, smoke_cfg)
+    actual  = test_df["Close"].values.astype(float)
+    n_steps = len(test_df)
+    logger.info("Synthetic split - train: %d rows, test: %d rows", len(train_df), n_steps)
+
+    models = [
+        NaiveForecaster(),
+        ARIMAForecaster({"order": [1, 1, 0]}),
+        ETSForecaster(cfg["models"]["ets"]),
+    ]
+
+    results: list[dict] = []
+    for model in models:
+        model.fit(train_df)
+        preds = _align(model.predict(n_steps), n_steps)
+        metrics = compute_all(actual, preds)
+        results.append({"model": model.name, "ticker": "SYNTH", **metrics})
+        logger.info(
+            "  [%s] RMSE=%.4f  MAE=%.4f  MAPE=%.2f%%  DA=%.1f%%",
+            model.name, metrics["RMSE"], metrics["MAE"], metrics["MAPE"], metrics["DA"],
+        )
+
+    leaderboard = build_leaderboard(results)
+    print("\n" + "=" * 60)
+    print("  SMOKE LEADERBOARD (synthetic data - NOT the real benchmark)")
+    print("=" * 60)
+    print(leaderboard.to_string(index=False))
+    print("=" * 60)
+    return leaderboard
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Stock Forecast Benchmark")
+    parser.add_argument(
+        "--smoke",
+        "--quick",
+        action="store_true",
+        dest="smoke",
+        help="Run a fast synthetic smoke benchmark (no network) instead of the full run.",
+    )
+    args = parser.parse_args()
+
+    set_global_seeds(SEED)
     cfg = load_config()
+
+    if args.smoke:
+        run_smoke(cfg)
+        return
 
     results, all_forecasts, all_actuals, all_dates = run_pipeline(cfg)
 
@@ -156,6 +246,8 @@ def main() -> None:
     inject_into_readme()
 
     # Visualise results for the first ticker (used as the showcase in README)
+    from visualization.plots import plot_forecast_comparison, plot_metrics_bar
+
     primary = cfg["data"]["tickers"][0]
     if primary in all_forecasts:
         plot_forecast_comparison(
