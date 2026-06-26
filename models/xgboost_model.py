@@ -21,15 +21,9 @@ import pandas as pd
 import xgboost as xgb
 
 from .base import BaseForecaster
+from .features import build_recursive_features, feature_columns
 
 logger = logging.getLogger(__name__)
-
-_FEATURE_PREFIX = ("lag_", "rolling_")
-
-
-def _feature_cols(df: pd.DataFrame) -> list[str]:
-    """Return all column names that are lag or rolling features."""
-    return [c for c in df.columns if c.startswith(_FEATURE_PREFIX)]
 
 
 class XGBoostForecaster(BaseForecaster):
@@ -42,7 +36,7 @@ class XGBoostForecaster(BaseForecaster):
         self._history: list[float] = []  # tail of training series used for prediction
 
     def fit(self, train: pd.DataFrame) -> None:
-        cols = _feature_cols(train)
+        cols = feature_columns(train)
         X = train[cols].values          # shape: (n_train, n_features)
         y = train["Close"].values.astype(float)
 
@@ -66,35 +60,12 @@ class XGBoostForecaster(BaseForecaster):
         preds: list[float] = []
 
         for _ in range(n_steps):
-            feat = self._build_features(history)
+            feat = build_recursive_features(history, self._lags, self._roll_wins)
             val  = float(self._model.predict(np.array([feat]))[0])
             preds.append(val)
             history.append(val)         # feed prediction back as the next lag input
 
         return np.array(preds)
-
-    def _build_features(self, history: list[float]) -> list[float]:
-        """
-        Reconstruct the feature vector from the running history list.
-
-        The order must exactly match the column order produced by
-        data/loader.py::_add_features():
-          lag_1, lag_2, ..., lag_lags,
-          rolling_mean_w, rolling_std_w  (for each w in rolling_windows)
-        """
-        feats: list[float] = []
-
-        # Lag features: history[-1] is the most recent known value (lag_1)
-        for lag in range(1, self._lags + 1):
-            feats.append(history[-lag])
-
-        # Rolling statistics from the tail of history
-        for w in self._roll_wins:
-            window = np.array(history[-w:])
-            feats.append(float(window.mean()))
-            feats.append(float(window.std()) if len(window) > 1 else 0.0)
-
-        return feats
 
     @property
     def name(self) -> str:

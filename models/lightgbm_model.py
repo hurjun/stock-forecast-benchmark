@@ -14,15 +14,9 @@ import numpy as np
 import pandas as pd
 
 from .base import BaseForecaster
+from .features import build_recursive_features, feature_columns
 
 logger = logging.getLogger(__name__)
-
-_FEATURE_PREFIX = ("lag_", "rolling_")
-
-
-def _feature_cols(df: pd.DataFrame) -> list[str]:
-    """Return all column names that are lag or rolling features."""
-    return [c for c in df.columns if c.startswith(_FEATURE_PREFIX)]
 
 
 class LightGBMForecaster(BaseForecaster):
@@ -35,7 +29,7 @@ class LightGBMForecaster(BaseForecaster):
         self._history: list[float] = []
 
     def fit(self, train: pd.DataFrame) -> None:
-        cols = _feature_cols(train)
+        cols = feature_columns(train)
         X = train[cols].values
         y = train["Close"].values.astype(float)
 
@@ -57,26 +51,12 @@ class LightGBMForecaster(BaseForecaster):
         preds: list[float] = []
 
         for _ in range(n_steps):
-            feat = self._build_features(history)
+            feat = build_recursive_features(history, self._lags, self._roll_wins)
             val  = float(self._model.predict(np.array([feat]))[0])
             preds.append(val)
             history.append(val)   # use prediction as the next lag
 
         return np.array(preds)
-
-    def _build_features(self, history: list[float]) -> list[float]:
-        """
-        Rebuild the feature vector from history in the same order as
-        data/loader.py so the model sees the same input schema it was trained on.
-        """
-        feats: list[float] = []
-        for lag in range(1, self._lags + 1):
-            feats.append(history[-lag])
-        for w in self._roll_wins:
-            window = np.array(history[-w:])
-            feats.append(float(window.mean()))
-            feats.append(float(window.std()) if len(window) > 1 else 0.0)
-        return feats
 
     @property
     def name(self) -> str:
