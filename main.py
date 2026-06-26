@@ -2,8 +2,10 @@
 Entry point for the Stock Forecast Benchmark.
 
 Usage:
-    python main.py            # full benchmark on real data (downloads via yfinance)
-    python main.py --smoke    # fast synthetic smoke run (no network, seconds)
+    python main.py                       # full benchmark on real data (downloads via yfinance)
+    python main.py --smoke               # fast synthetic smoke run (no network, seconds)
+    python main.py --smoke --save-plots  # smoke run + save a forecast-vs-actual PNG
+    python main.py --plot-leaderboard    # regen results/metrics_bar.png from committed CSV
 
 What the full run does:
   1. Load configuration from config.yaml
@@ -161,14 +163,21 @@ def run_pipeline(cfg: dict):
     return results, all_forecasts, all_actuals, all_dates
 
 
-def run_smoke(cfg: dict) -> "object":
+def run_smoke(cfg: dict, save_plots: bool = False) -> "object":
     """
     Fast, network-free smoke benchmark on a deterministic synthetic series.
 
     Trains only the cheap statistical baselines (Naive, ARIMA, ETS) so a
     reviewer can confirm the full data -> feature -> split -> fit -> evaluate
     pipeline works in seconds.  Results are printed only; README.md and the
-    committed results/ are left untouched.
+    committed leaderboard are left untouched.
+
+    Args:
+        cfg: The full parsed configuration dict.
+        save_plots: When True, also write a forecast-vs-actual PNG
+            (``results/smoke_forecast.png``) generated from this run's real
+            outputs.  Off by default so the plain smoke run stays dependency-
+            light and side-effect free.
 
     Returns:
         The smoke leaderboard DataFrame (for programmatic inspection / tests).
@@ -201,15 +210,33 @@ def run_smoke(cfg: dict) -> "object":
     ]
 
     results: list[dict] = []
+    forecasts: dict[str, np.ndarray] = {}
     for model in models:
         model.fit(train_df)
         preds = _align(model.predict(n_steps), n_steps)
         metrics = compute_all(actual, preds)
         results.append({"model": model.name, "ticker": "SYNTH", **metrics})
+        forecasts[model.name] = preds
         logger.info(
             "  [%s] RMSE=%.4f  MAE=%.4f  MAPE=%.2f%%  DA=%.1f%%",
             model.name, metrics["RMSE"], metrics["MAE"], metrics["MAPE"], metrics["DA"],
         )
+
+    if save_plots:
+        # Render a forecast-vs-actual figure from this run's genuine outputs.
+        # The title is explicit that the data is synthetic so the committed PNG
+        # is never confused with the real ^GSPC/KO/IBM benchmark.
+        from visualization.plots import plot_forecast_comparison
+
+        plot_forecast_comparison(
+            test_df.index,
+            actual,
+            forecasts,
+            ticker="Synthetic",
+            title="Smoke Run — Synthetic Random Walk (offline pipeline check, NOT the real benchmark)",
+            filename="smoke_forecast.png",
+        )
+        logger.info("Wrote results/smoke_forecast.png from the synthetic smoke run.")
 
     leaderboard = build_leaderboard(results)
     print("\n" + "=" * 60)
@@ -218,6 +245,28 @@ def run_smoke(cfg: dict) -> "object":
     print(leaderboard.to_string(index=False))
     print("=" * 60)
     return leaderboard
+
+
+def plot_committed_leaderboard(
+    csv_path: str = "results/leaderboard.csv",
+    out_dir: str = "results",
+) -> None:
+    """
+    Regenerate ``results/metrics_bar.png`` from the committed leaderboard CSV.
+
+    This lets a reviewer reproduce the per-model error-bar figure embedded in
+    the README directly from the genuine committed results — offline, in
+    seconds, without the ~3.5 h full benchmark or any network access.  It plots
+    only the real numbers already stored in ``results/leaderboard.csv``; it
+    never invents values.
+    """
+    import pandas as pd
+
+    from visualization.plots import plot_metrics_bar
+
+    df = pd.read_csv(csv_path)
+    plot_metrics_bar(df, out_dir=out_dir)
+    logger.info("Wrote %s/metrics_bar.png from %s", out_dir, csv_path)
 
 
 def main() -> None:
@@ -229,13 +278,30 @@ def main() -> None:
         dest="smoke",
         help="Run a fast synthetic smoke benchmark (no network) instead of the full run.",
     )
+    parser.add_argument(
+        "--save-plots",
+        action="store_true",
+        help="With --smoke, also save a forecast-vs-actual PNG to results/.",
+    )
+    parser.add_argument(
+        "--plot-leaderboard",
+        action="store_true",
+        help=(
+            "Regenerate results/metrics_bar.png from the committed "
+            "results/leaderboard.csv (no training, no network) and exit."
+        ),
+    )
     args = parser.parse_args()
 
     set_global_seeds(SEED)
     cfg = load_config()
 
+    if args.plot_leaderboard:
+        plot_committed_leaderboard()
+        return
+
     if args.smoke:
-        run_smoke(cfg)
+        run_smoke(cfg, save_plots=args.save_plots)
         return
 
     results, all_forecasts, all_actuals, all_dates = run_pipeline(cfg)

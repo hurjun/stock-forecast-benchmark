@@ -29,6 +29,8 @@ def plot_forecast_comparison(
     forecasts: dict[str, np.ndarray],
     ticker: str,
     out_dir: str = "results",
+    title: str | None = None,
+    filename: str = "forecast_comparison.png",
 ) -> None:
     """
     Line chart: actual closing prices vs each model's forecast.
@@ -37,8 +39,14 @@ def plot_forecast_comparison(
         dates:     DatetimeIndex of the test period (x-axis)
         actual:    Array of true closing prices
         forecasts: {model_name: predictions} dict
-        ticker:    Ticker symbol shown in the chart title
+        ticker:    Ticker symbol shown in the (default) chart title
         out_dir:   Directory where the PNG is saved
+        title:     Optional explicit chart title. When ``None`` (default) the
+                   original real-benchmark title is used; callers running on a
+                   different window (e.g. the synthetic smoke run) pass an
+                   honest title so the figure is never mislabelled.
+        filename:  Output PNG file name (lets the smoke run write a distinct
+                   file without clobbering the full-run figure).
     """
     fig, ax = plt.subplots(figsize=(14, 5))
 
@@ -55,14 +63,17 @@ def plot_forecast_comparison(
             alpha=0.85,
         )
 
-    ax.set_title(f"Forecast Comparison — {ticker} (Test Period: 1993–2000)", fontsize=13)
+    ax.set_title(
+        title or f"Forecast Comparison — {ticker} (Test Period: 1993–2000)",
+        fontsize=13,
+    )
     ax.set_xlabel("Date")
     ax.set_ylabel("Close Price (USD)")
     ax.legend(loc="upper left", fontsize=9, framealpha=0.9)
     plt.tight_layout()
 
     os.makedirs(out_dir, exist_ok=True)
-    plt.savefig(os.path.join(out_dir, "forecast_comparison.png"), dpi=150)
+    plt.savefig(os.path.join(out_dir, filename), dpi=150)
     plt.close()   # free memory; required when running many plots in sequence
 
 
