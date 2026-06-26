@@ -1,0 +1,77 @@
+"""Known-answer tests for the forecast evaluation metrics."""
+
+import math
+
+import numpy as np
+import pytest
+
+from evaluation.metrics import (
+    compute_all,
+    directional_accuracy,
+    mae,
+    mape,
+    rmse,
+)
+
+
+def test_perfect_prediction_has_zero_error():
+    y = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    assert mae(y, y) == pytest.approx(0.0)
+    assert rmse(y, y) == pytest.approx(0.0)
+    assert mape(y, y) == pytest.approx(0.0)
+
+
+def test_mae_known_answer():
+    y_true = np.array([1.0, 2.0, 3.0])
+    y_pred = np.array([2.0, 2.0, 5.0])  # abs errors: 1, 0, 2 -> mean = 1.0
+    assert mae(y_true, y_pred) == pytest.approx(1.0)
+
+
+def test_rmse_known_answer():
+    y_true = np.array([0.0, 0.0, 0.0])
+    y_pred = np.array([3.0, 0.0, 4.0])  # squared errors: 9, 0, 16 -> mean 25/3
+    assert rmse(y_true, y_pred) == pytest.approx(math.sqrt(25.0 / 3.0))
+
+
+def test_rmse_penalises_large_errors_more_than_mae():
+    y_true = np.array([0.0, 0.0, 0.0, 0.0])
+    y_pred = np.array([0.0, 0.0, 0.0, 10.0])  # one big miss
+    assert rmse(y_true, y_pred) > mae(y_true, y_pred)
+
+
+def test_mape_known_answer_and_percentage_scale():
+    y_true = np.array([100.0, 200.0])
+    y_pred = np.array([110.0, 180.0])  # 10% and 10% -> 10
+    assert mape(y_true, y_pred) == pytest.approx(10.0)
+
+
+def test_mape_skips_zero_denominators():
+    y_true = np.array([0.0, 100.0])
+    y_pred = np.array([5.0, 90.0])  # row 0 skipped; only 10% from row 1
+    assert mape(y_true, y_pred) == pytest.approx(10.0)
+
+
+def test_directional_accuracy_all_correct():
+    y_true = np.array([1.0, 2.0, 3.0, 2.0])  # up, up, down
+    y_pred = np.array([5.0, 6.0, 9.0, 1.0])  # up, up, down
+    assert directional_accuracy(y_true, y_pred) == pytest.approx(100.0)
+
+
+def test_directional_accuracy_all_wrong():
+    y_true = np.array([1.0, 2.0, 3.0])  # up, up
+    y_pred = np.array([3.0, 2.0, 1.0])  # down, down
+    assert directional_accuracy(y_true, y_pred) == pytest.approx(0.0)
+
+
+def test_directional_accuracy_is_a_percentage():
+    y_true = np.array([1.0, 2.0, 1.0, 2.0])  # up, down, up
+    y_pred = np.array([1.0, 2.0, 3.0, 4.0])  # up, up, up  -> 2 of 3 correct
+    assert directional_accuracy(y_true, y_pred) == pytest.approx(200.0 / 3.0)
+
+
+def test_compute_all_returns_all_metric_keys():
+    y_true = np.array([1.0, 2.0, 3.0, 4.0])
+    y_pred = np.array([1.1, 2.1, 2.9, 4.2])
+    out = compute_all(y_true, y_pred)
+    assert set(out) == {"MAE", "RMSE", "MAPE", "DA"}
+    assert all(isinstance(v, float) and math.isfinite(v) for v in out.values())
